@@ -1,4 +1,4 @@
-const Kit = require('../models/KitModel.js');
+const Kit = require('../models/kitModel.js');
 
 const addKit = async (req, res) => {
     try {
