@@ -63,13 +63,16 @@ const connectDB = async () => {
     try {
         const mongoURI = process.env.MONGODB_URI || "mongodb+srv://kareemmisrforimport:qmuoWoCJs2K0yMfn@misrforimportdb.xeakt8n.mongodb.net/"
         
+        console.log('Attempting to connect to MongoDB...');
+        console.log('Connection string:', mongoURI.replace(/\/\/[^:]+:[^@]+@/, '//***:***@')); // Hide credentials in logs
+        
         // Configure mongoose for serverless
         mongoose.set('bufferCommands', false);
         
         await mongoose.connect(mongoURI, {
             useNewUrlParser: true,
             useUnifiedTopology: true,
-            serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+            serverSelectionTimeoutMS: 10000, // Increased timeout to 10s
             socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
             family: 4 // Use IPv4, skip trying IPv6
         })
@@ -78,6 +81,7 @@ const connectDB = async () => {
         console.log("Database connected successfully")
     } catch (error) {
         console.error("Database connection error:", error.message)
+        console.error("Full error:", error)
         isConnected = false;
         throw error; // Re-throw the error so we can handle it
     }
@@ -93,10 +97,21 @@ const ensureDBConnection = async (req, res, next) => {
         next();
     } catch (error) {
         console.error('Database connection middleware error:', error);
+        
+        // For GET requests, allow them to proceed with a warning
+        if (req.method === 'GET') {
+            console.log('Allowing GET request to proceed despite database connection issue');
+            next();
+            return;
+        }
+        
+        // For other requests, return error
         res.status(500).json({
             status: false,
             error: "Database connection failed",
-            location: "ensureDBConnection middleware"
+            details: error.message,
+            location: "ensureDBConnection middleware",
+            suggestion: "Please check your MongoDB connection string and credentials"
         });
     }
 };
@@ -244,8 +259,42 @@ app.get('/api/health', (req, res) => {
         message: 'API is healthy',
         timestamp: new Date().toISOString(),
         environment: process.env.NODE_ENV || 'development',
-        databaseConnected: isConnected
+        databaseConnected: isConnected,
+        databaseReadyState: mongoose.connection.readyState
     });
+});
+
+// Database test endpoint
+app.get('/api/test-db', async (req, res) => {
+    try {
+        if (mongoose.connection.readyState !== 1) {
+            return res.json({
+                status: false,
+                message: 'Database not connected',
+                readyState: mongoose.connection.readyState,
+                isConnected: isConnected
+            });
+        }
+        
+        // Try a simple database operation
+        const testResult = await mongoose.connection.db.admin().ping();
+        
+        res.json({
+            status: true,
+            message: 'Database connection test successful',
+            ping: testResult,
+            readyState: mongoose.connection.readyState,
+            isConnected: isConnected
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: false,
+            message: 'Database connection test failed',
+            error: error.message,
+            readyState: mongoose.connection.readyState,
+            isConnected: isConnected
+        });
+    }
 });
 
 // Only start server if not in serverless environment
