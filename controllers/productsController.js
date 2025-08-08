@@ -1,9 +1,19 @@
 const Product = require('../models/productsModel.js');
+const mongoose = require('mongoose');
 
 
 // Create a new product
 const createNewCardProduct = async (req, res) => {
     try {
+        // Check if database is connected
+        if (!mongoose.connection.readyState) {
+            return res.status(500).json({
+                status: false,
+                error: "Database not connected",
+                location: "createNewCardProduct (productsController)"
+            });
+        }
+
         let {
             cardARName,
             cardENName,
@@ -24,10 +34,9 @@ const createNewCardProduct = async (req, res) => {
         } = req.body;
 
         // ✅ جلب أعلى `cardNumber` ثم زيادته بمقدار 1
-        const maxCard = await Product.findOne().sort({ cardNumber: -1 }).select('cardNumber');
+        const maxCard = await Product.findOne().sort({ cardNumber: -1 }).select('cardNumber').maxTimeMS(5000);
 
-const cardNumber = parseInt(maxCard.cardNumber) + 1 ;
-
+        const cardNumber = maxCard ? parseInt(maxCard.cardNumber) + 1 : 1;
         
         
         
@@ -76,11 +85,12 @@ const cardNumber = parseInt(maxCard.cardNumber) + 1 ;
         });
 
     } catch (error) {
-        res.status(error.code === 11000 ? 409 : 400).json({
+        console.error('Error in createNewCardProduct:', error);
+        res.status(error.code === 11000 ? 409 : 500).json({
             status: false,
             error: error.message,
             code: error.code,
-            location: "createProduct (productsController)"
+            location: "createNewCardProduct (productsController)"
         });
     }
 };

@@ -51,17 +51,35 @@ const inventoryRouter = require('./routes/inventoryRouter.js');
 const errMW = require("./middlewares/ErrMW")
 const mongoose = require("mongoose")
 
-// Database connection with better error handling
+// Database connection with better error handling for serverless
+let isConnected = false;
+
 const connectDB = async () => {
+    if (isConnected) {
+        console.log('Using existing database connection');
+        return;
+    }
+
     try {
         const mongoURI = process.env.MONGODB_URI || "mongodb+srv://kareemmisrforimport:qmuoWoCJs2K0yMfn@misrforimportdb.xeakt8n.mongodb.net/"
+        
+        // Configure mongoose for serverless
+        mongoose.set('bufferCommands', false);
+        mongoose.set('bufferMaxEntries', 0);
+        
         await mongoose.connect(mongoURI, {
             useNewUrlParser: true,
             useUnifiedTopology: true,
+            serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+            socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
+            family: 4 // Use IPv4, skip trying IPv6
         })
+        
+        isConnected = true;
         console.log("Database connected successfully")
     } catch (error) {
         console.error("Database connection error:", error.message)
+        isConnected = false;
         // Don't exit process in serverless environment
         if (process.env.NODE_ENV !== 'production') {
             process.exit(1)
@@ -69,8 +87,13 @@ const connectDB = async () => {
     }
 }
 
-// Connect to database
-connectDB()
+// Middleware to ensure database connection before each request
+const ensureDBConnection = async (req, res, next) => {
+    if (!isConnected) {
+        await connectDB();
+    }
+    next();
+};
 
 const port = process.env.PORT || 8080
 
@@ -102,6 +125,9 @@ app.use(express.urlencoded({ extended: true }))
 if (process.env.NODE_ENV !== 'production') {
     app.use(express.static("public"))
 }
+
+// Apply database connection middleware to all API routes
+app.use('/api', ensureDBConnection);
 
 //throw Error("Unhandeled exception")
 //let p = Promise.reject(new Error("Something went wrong"))
@@ -211,7 +237,8 @@ app.get('/api/health', (req, res) => {
         status: true,
         message: 'API is healthy',
         timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV || 'development'
+        environment: process.env.NODE_ENV || 'development',
+        databaseConnected: isConnected
     });
 });
 
