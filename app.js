@@ -1,4 +1,3 @@
-
 const bodyParser = require('body-parser');
 const path = require("path")
 const express = require("express")
@@ -182,3 +181,5 @@ app.listen(port, () => {
 // app.use(logging)
 //app.use("/api/Login", authRouter)
 //app.use("/api/admin", adminRouter)
+
+module.exports = app;
