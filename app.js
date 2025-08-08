@@ -55,7 +55,7 @@ const mongoose = require("mongoose")
 let isConnected = false;
 
 const connectDB = async () => {
-    if (isConnected) {
+    if (isConnected && mongoose.connection.readyState === 1) {
         console.log('Using existing database connection');
         return;
     }
@@ -79,10 +79,7 @@ const connectDB = async () => {
     } catch (error) {
         console.error("Database connection error:", error.message)
         isConnected = false;
-        // Don't exit process in serverless environment
-        if (process.env.NODE_ENV !== 'production') {
-            process.exit(1)
-        }
+        throw error; // Re-throw the error so we can handle it
     }
 }
 

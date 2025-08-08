@@ -5,6 +5,15 @@ const mongoose = require('mongoose');
 // Create a new product
 const createNewCardProduct = async (req, res) => {
     try {
+        // Ensure database is connected
+        if (mongoose.connection.readyState !== 1) {
+            return res.status(500).json({
+                status: false,
+                error: "Database not ready. Please try again.",
+                location: "createNewCardProduct (productsController)"
+            });
+        }
+
         let {
             cardARName,
             cardENName,
