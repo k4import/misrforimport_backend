@@ -1,13 +1,15 @@
 {
-  "name": "expressdemo",
+  "name": "misrforimport-backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "node app.js",
+  "description": "Misr For Import System Backend API",
+  "main": "app.js",
   "scripts": {
-    "start": "node app",
-    "build": "echo No build step needed"
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "build": "echo No build step needed",
+    "vercel-build": "echo No build step needed"
   },
-  "keywords": [],
+  "keywords": ["api", "express", "mongodb", "misrforimport"],
   "author": "Kareem Mohammed",
   "license": "ISC",
   "dependencies": {
@@ -27,6 +29,6 @@
     "nodemon": "3.1.10"
   },
   "engines": {
-    "node": "^22.x"
+    "node": "^18.x"
   }
 }

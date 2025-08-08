@@ -1,7 +1,6 @@
 const mongoose = require("mongoose")
 const valid = require("validator")
 const jwt = require("jsonwebtoken")
-const config = require("config")
 
 const employeeSchema = new mongoose.Schema({
     employeeID: {
@@ -149,17 +148,16 @@ const employeeSchema = new mongoose.Schema({
 
 })
 
-employeeSchema.method("genEmployeeAuthToken", function () {
+employeeSchema.methods.genEmployeeAuthToken = function () {
+    const jwtSecret = process.env.JWT_SECRET || "jwtsecvar";
     const token = jwt.sign({
         employeeID: this.employeeID,
         employeeIsActive: this.employeeIsActive,
         employeeIsAdmin: this.employeeIsAdmin,
         employeePermissions: this.employeePermissions,
-    },
-        config.get("server.jwtsec"))
+    }, jwtSecret, { expiresIn: '24h' })
     return token
-})
-
+}
 
 const Employee = mongoose.model("employees", employeeSchema)
 module.exports = Employee

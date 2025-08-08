@@ -50,32 +50,58 @@ const inventoryRouter = require('./routes/inventoryRouter.js');
 //const logging = require("./middlewares/logging")
 const errMW = require("./middlewares/ErrMW")
 const mongoose = require("mongoose")
-//mongodb+srv://kareemmisrforimport:qmuoWoCJs2K0yMfn@misrforimportdb.xeakt8n.mongodb.net/
-//mongoose.connect("mongodb://localhost:27017/misrforimport")
-mongoose.connect("mongodb+srv://kareemmisrforimport:qmuoWoCJs2K0yMfn@misrforimportdb.xeakt8n.mongodb.net/")
-    .then(() => { console.log("Database connected....") })
-    .catch((err) => { console.log(err) })
 
-const port = process.env.port || 8080
+// Database connection with better error handling
+const connectDB = async () => {
+    try {
+        const mongoURI = process.env.MONGODB_URI || "mongodb+srv://kareemmisrforimport:qmuoWoCJs2K0yMfn@misrforimportdb.xeakt8n.mongodb.net/"
+        await mongoose.connect(mongoURI, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+        })
+        console.log("Database connected successfully")
+    } catch (error) {
+        console.error("Database connection error:", error.message)
+        // Don't exit process in serverless environment
+        if (process.env.NODE_ENV !== 'production') {
+            process.exit(1)
+        }
+    }
+}
 
+// Connect to database
+connectDB()
 
+const port = process.env.PORT || 8080
+
+// Improved error handling for serverless environment
 process.on("uncaughtException", (exception) => {
     console.log("uncaught Exception:", exception.message)
     console.log(exception.stack)
-    process.exit(1)
+    // Don't exit in serverless environment
+    if (process.env.NODE_ENV !== 'production') {
+        process.exit(1)
+    }
 })
+
 process.on("unhandledRejection", (exception) => {
     console.log("Promise Rejected:", exception.message)
     console.log(exception.stack)
-    process.exit(1)
+    // Don't exit in serverless environment
+    if (process.env.NODE_ENV !== 'production') {
+        process.exit(1)
+    }
 })
 
 app.use(bodyParser.json());
 
-
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
-app.use(express.static("public"))
+
+// Only serve static files in development
+if (process.env.NODE_ENV !== 'production') {
+    app.use(express.static("public"))
+}
 
 //throw Error("Unhandeled exception")
 //let p = Promise.reject(new Error("Something went wrong"))
@@ -145,13 +171,29 @@ app.use(errMW)
 
 app.get("/", (req, res) => {
     console.log("req received")
-    res.sendFile(path.join(__dirname, "/main.html"))
+    // Only serve HTML files in development
+    if (process.env.NODE_ENV !== 'production') {
+        res.sendFile(path.join(__dirname, "/main.html"))
+    } else {
+        res.json({
+            status: true,
+            message: "Misr For Import API is running",
+            version: "1.0.0"
+        })
+    }
     //res.send(" this is server response")
 });
 
 app.get("/welcome.html", (req, res) => {
     console.log(req.query)
-    res.sendFile(path.join(__dirname, "/welcome.html"))
+    if (process.env.NODE_ENV !== 'production') {
+        res.sendFile(path.join(__dirname, "/welcome.html"))
+    } else {
+        res.json({
+            status: true,
+            message: "Welcome to Misr For Import API"
+        })
+    }
 })
 
 app.post("/welcome.html", (req, res) => {
@@ -163,10 +205,22 @@ app.use('/api/Warehouses', warehouseRouter);
 app.use('/api/Locations', locationRouter);
 app.use('/api/Inventory', inventoryRouter);
 
-app.listen(port, () => {
-    console.log(`Express server is listening port ${port}`)
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+    res.json({
+        status: true,
+        message: 'API is healthy',
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || 'development'
+    });
 });
 
+// Only start server if not in serverless environment
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(port, () => {
+        console.log(`Express server is listening port ${port}`)
+    });
+}
 
 //const studentsRouter = require("./learen_in_iti_course/Students.js")
 
