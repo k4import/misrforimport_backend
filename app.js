@@ -65,7 +65,6 @@ const connectDB = async () => {
         
         // Configure mongoose for serverless
         mongoose.set('bufferCommands', false);
-        mongoose.set('bufferMaxEntries', 0);
         
         await mongoose.connect(mongoURI, {
             useNewUrlParser: true,
@@ -89,10 +88,20 @@ const connectDB = async () => {
 
 // Middleware to ensure database connection before each request
 const ensureDBConnection = async (req, res, next) => {
-    if (!isConnected) {
-        await connectDB();
+    try {
+        if (!isConnected || mongoose.connection.readyState !== 1) {
+            console.log('Reconnecting to database...');
+            await connectDB();
+        }
+        next();
+    } catch (error) {
+        console.error('Database connection middleware error:', error);
+        res.status(500).json({
+            status: false,
+            error: "Database connection failed",
+            location: "ensureDBConnection middleware"
+        });
     }
-    next();
 };
 
 const port = process.env.PORT || 8080
